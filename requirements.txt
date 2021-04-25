@@ -1,0 +1,3 @@
+fritzconnection
+pycurl
+python-dotenv

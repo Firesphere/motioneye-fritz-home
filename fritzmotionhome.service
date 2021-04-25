@@ -1,0 +1,16 @@
+[Unit]
+Description = Start or Stop Motion depending on if you are home
+After = network.target # Assuming you want to start after network interfaces are made available
+
+[Service]
+Type = simple
+ExecStart = python3 <Path of the location of the fbhomerecognition.py script>
+User = pi
+Group = pi
+Restart = on-failure # Restart when there are errors
+SyslogIdentifier = fbmotionhome.log # I hope we can log?
+RestartSec = 15 # Give it a little time before restarting
+TimeoutStartSec = infinity
+
+[Install]
+WantedBy = multi-user.target # Make it start for everyone
