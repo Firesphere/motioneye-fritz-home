@@ -7,6 +7,7 @@
 # feel free to tell me.
 # I am from germany and therefore my english is not quite good. Sorry ;-)
 
+import subprocess
 import os
 import time
 import pycurl
@@ -34,7 +35,7 @@ file_handler.setFormatter(formatter)
 # add file handler to logger
 logger.addHandler(file_handler)
 
-# Load the environment variables into globals
+# Load the environment variables into application globals
 maclist = os.getenv('maclist').split(',')
 fritz_ip = os.getenv('fritzbox')
 fritz_user = os.getenv('fbuser')
@@ -45,20 +46,15 @@ fritz = FritzConnection(address=fritz_ip, port=None, user=fritz_user, password=f
 
 def main():
     # Method specific parts
-    crl = pycurl.Curl()
-    # Only set status at first run
     status = "UNKNOWN"
-    # Change IP to where your MotionEye(OS) is running. Port is standard port.
-    # "1" is the number of the camera to check. For more information read MotionEye(OS) wiki
+    output = io.BytesIO()
     while True:
-        output = io.BytesIO()
         try:
             # Read data from Fritz!Box with fritzconnection
             # check if given MAC addresses stored in credentials.py are online
             home = False
             # Path depends on where you installed fritzconnection. IP needs to be set to Fritz!Box IP.
             # fbuser and fpbass are stored in credentials.py
-            status = motion_statuscheck(crl, status, output)
             hosts = FritzWLAN(fritz).get_hosts_info()
             for host in hosts:
                 if not home and host.get('mac') in maclist:
@@ -66,22 +62,21 @@ def main():
                     hosts.clear()
                     break
 
-            status = startstop_motion(crl, status, home)
+            status = startstop_motion(status, home)
 
-            # Reset the cURL to make sure we're not doubling up requests
             # Clear out the existing output, so we're not accidentally doubling up
             output.truncate()
             # Wait for 60 seconds before this runs again
             time.sleep(60)
         except BaseException:
-            status = "UNKNOWN"
             logger.exception('Error at Fritz!Box Home Recognition:', BaseException)
             break
 
 
-def motion_statuscheck(crl, motion_status, output):
+def motion_statuscheck(motion_status, output):
     # Read status of motion detection from MotionEye(OS) if it's not set yet
-    if motion_status is "UNKNOWN":
+    try:
+        crl = pycurl.Curl()
         crl.setopt(pycurl.URL, motion + "/0/detection/status")
         crl.setopt(pycurl.WRITEFUNCTION, output.write)
         crl.perform()
@@ -91,28 +86,22 @@ def motion_statuscheck(crl, motion_status, output):
             return "PAUSE"
         elif status.find("ACTIVE") != -1:
             return "ACTIVE"
-        else:
-            return "UNKNOWN"
+    except BaseException:
+        logger.info("Motion returned an error", BaseException)
+        motion_status = "PAUSE"
     return motion_status
 
 
 # Check if we need to start or stop Motion, and exec
-def startstop_motion(crl, status, home):
+def startstop_motion(status, home):
     action = "start"
-    exec_crl = False
     if not home and status is not "ACTIVE":
         status = "ACTIVE"
-        exec_crl = True
     elif home and status is "ACTIVE":
-        action = "pause"
         status = "PAUSE"
-        exec_crl = True
+        action = "stop"
 
-    if exec_crl:
-        logger.info('Setting Motion status to ' + action)
-        crl.setopt(pycurl.URL, motion + "/0/detection/" + action)
-        crl.perform()
-        crl.reset()
+    subprocess.call("service motioneye " + action)
 
     return status
 
