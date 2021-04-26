@@ -29,7 +29,7 @@ If you can, run it via `/etc/init.d` or some other automated start-up script.
 
 `/path/to/fbhomerecognition.pi` in your start-up script
 
-### UNTESTED Start-as-a-service
+### Start-as-a-service
 
 Or, add it to your start-up scripts.
 
@@ -51,7 +51,7 @@ Copy `example.env` to `.env`, and adjust the settings as needed.
 
 ## Logging
 
-Should work. Sadly, doesn't, it seems.
+Should work. Logs are in `/var/log/fbhome.log`
 
 # LICENSE
 WTFPL

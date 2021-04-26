@@ -1,19 +1,19 @@
 #!/usr/bin/python3
-# This script is launched at boot via cron and runs on my server pi (Raspberry pi 3b+)
-# where it switches MotionEyeOS motion detection on another pi (Raspberry pi Zero W)
+# This script is launched at boot via systemd and runs on my server pi (Raspberry pi 3b+)
+# where it switches MotionEyeOS motion detection on or off
 # depending on if given devices are found in the Fritz!Box (WIFI)network.
 
 # Be aware of that this is a beginners work. If you find anything that could be improved
 # feel free to tell me.
-# I am from germany and therefore my english is not quite good. Sorry ;-)
 
-import subprocess
-import os
-import time
-import pycurl
 import io
 import logging
+import os
+import subprocess
+import time
+
 import dotenv
+import pycurl
 from fritzconnection import FritzConnection
 from fritzconnection.lib.fritzwlan import FritzWLAN
 
@@ -22,11 +22,11 @@ env_path = os.path.join(os.getcwd(), '.env')
 dotenv.load_dotenv(dotenv_path=env_path)
 # create pid file
 pid = str(os.getpid())
-f = open(os.getenv('lockfile'), 'w')  # Change path to fit your needs
+f = open(os.getenv('lockfile'), 'w')
 f.write(pid)
 f.close()
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("FRITZ!Box AmIHome Recognition")
 logger.setLevel(logging.INFO)
 file_handler = logging.FileHandler('/var/log/fbhome.log')
 formatter = logging.Formatter('%(asctime)s : %(levelname)s : %(name)s : %(message)s')
@@ -37,41 +37,41 @@ logger.addHandler(file_handler)
 
 # Load the environment variables into application globals
 maclist = os.getenv('maclist').split(',')
-fritz_ip = os.getenv('fritzbox')
-fritz_user = os.getenv('fbuser')
-fritz_password = os.getenv('fbpass')
 motion = os.getenv('motion')
-fritz = FritzConnection(address=fritz_ip, port=None, user=fritz_user, password=fritz_password)
+# Path depends on where you installed fritzconnection. IP needs to be set to Fritz!Box IP.
+# fbuser and fpbass are stored in credentials.py
+fritz = FritzConnection(address=os.getenv('fritzbox'), user=os.getenv('fbuser'), password=os.getenv('fbpass'))
 
 
 def main():
     # Method specific parts
     output = io.BytesIO()
-    status = motion_statuscheck("UNKNOWN", output)
-    while True:
+    status = "UNKNOWN"
+    status = motion_statuscheck(status, output)
+    while True:  # We loop forever
         try:
-            # Read data from Fritz!Box with fritzconnection
-            # check if given MAC addresses stored in credentials.py are online
-            home = False
-            # Path depends on where you installed fritzconnection. IP needs to be set to Fritz!Box IP.
-            # fbuser and fpbass are stored in credentials.py
-            hosts = FritzWLAN(fritz).get_hosts_info()
-            for host in hosts:
-                if not home and host.get('mac') in maclist:
-                    home = True
-                    logger.info("Someone is home: " + host.get('mac'))
-                    hosts.clear()
-                    break
+            home = check_hosts()
 
             status = startstop_motion(status, home)
 
             # Clear out the existing output, so we're not accidentally doubling up
             output.truncate()
             # Wait for 60 seconds before this runs again
-            time.sleep(60)
         except BaseException:
-            logger.exception('Error at Fritz!Box Home Recognition:', BaseException)
+            logger.exception('Error at Fritz!Box Home Recognition ', BaseException)
+        time.sleep(60)
+
+
+def check_hosts():
+    home = False
+    hosts = FritzWLAN(fritz).get_hosts_info()
+    # Read data from Fritz!Box with fritzconnection
+    # check if given MAC addresses stored in .env are online
+    for host in hosts:
+        if not home and host.get('mac') in maclist:
+            home = True
             break
+    return home
 
 
 def motion_statuscheck(motion_status, output):
@@ -89,7 +89,7 @@ def motion_statuscheck(motion_status, output):
             return "ACTIVE"
     except BaseException:
         logger.info("Motion returned an error", BaseException)
-        motion_status = "PAUSE"
+        motion_status = "PAUSE"  # We got an error, so, force to be "Paused" so next time, it'll activate if needed
     return motion_status
 
 
@@ -98,10 +98,10 @@ def startstop_motion(status, home):
     logmsg = ("current status: " + status)
     action = "start"
     exec_cmd = False
-    if not home and status is not "ACTIVE":
+    if not home and status is not "ACTIVE":  # Nobody is home, activate
         status = "ACTIVE"
         exec_cmd = True
-    elif home and status is "ACTIVE":
+    elif home and status is "ACTIVE":  # Someone is home, deactivate
         status = "PAUSE"
         action = "stop"
         exec_cmd = True
@@ -110,7 +110,7 @@ def startstop_motion(status, home):
         cmd = 'service motioneye ' + action
         subprocess.run(cmd, shell=True)
         logmsg = logmsg + " new status: " + status
-    logger.info(logmsg)
+        logger.info(logmsg)
 
     return status
 
