@@ -46,8 +46,8 @@ fritz = FritzConnection(address=fritz_ip, port=None, user=fritz_user, password=f
 
 def main():
     # Method specific parts
-    status = "UNKNOWN"
     output = io.BytesIO()
+    status = motion_statuscheck("UNKNOWN", output)
     while True:
         try:
             # Read data from Fritz!Box with fritzconnection
