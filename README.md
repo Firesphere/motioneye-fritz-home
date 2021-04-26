@@ -11,7 +11,13 @@ Python3.
 
 git clone this repository to your folder of likings.
 
-`sudpo pip3 install -r requirements.txt`
+`sudo pip3 install -r requirements.txt`
+
+Ensure the file `fbhomerecognition.py` is executable:
+
+```shell
+chmod +x fbhomerecognition.py
+```
 
 ### Running
 
@@ -29,7 +35,7 @@ Or, add it to your start-up scripts.
 
 See the `.service` file. Adjust the variables to what you need, and copy it to
 
-`/lib/systemd/system/fritzmotionhome.service`
+`/etc/systemd/system/fritzmotionhome.service`
 
 Then run the following:
 
