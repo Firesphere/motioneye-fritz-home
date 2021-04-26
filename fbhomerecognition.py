@@ -101,7 +101,9 @@ def startstop_motion(status, home):
         status = "PAUSE"
         action = "stop"
 
-    subprocess.call("service motioneye " + action)
+    cmd = 'service motioneye ' + action
+    result = subprocess.call(cmd)
+    logger.info(result)
 
     return status
 
