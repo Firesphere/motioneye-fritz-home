@@ -59,6 +59,7 @@ def main():
             for host in hosts:
                 if not home and host.get('mac') in maclist:
                     home = True
+                    logger.info("Someone is home: " + host.get('mac'))
                     hosts.clear()
                     break
 
@@ -94,6 +95,7 @@ def motion_statuscheck(motion_status, output):
 
 # Check if we need to start or stop Motion, and exec
 def startstop_motion(status, home):
+    logmsg = ("current status: " + status)
     action = "start"
     if not home and status is not "ACTIVE":
         status = "ACTIVE"
@@ -102,8 +104,10 @@ def startstop_motion(status, home):
         action = "stop"
 
     cmd = 'service motioneye ' + action
-    result = subprocess.call(cmd, shell=True)
-    logger.info(result)
+    result = subprocess.run(cmd, shell=True)
+    logmsg = logmsg + " new status: " + status
+    logger.info(cmd)
+    logger.info(logmsg)
 
     return status
 
