@@ -97,16 +97,19 @@ def motion_statuscheck(motion_status, output):
 def startstop_motion(status, home):
     logmsg = ("current status: " + status)
     action = "start"
+    exec_cmd = False
     if not home and status is not "ACTIVE":
         status = "ACTIVE"
+        exec_cmd = True
     elif home and status is "ACTIVE":
         status = "PAUSE"
         action = "stop"
+        exec_cmd = True
 
-    cmd = 'service motioneye ' + action
-    result = subprocess.run(cmd, shell=True)
-    logmsg = logmsg + " new status: " + status
-    logger.info(cmd)
+    if exec_cmd:
+        cmd = 'service motioneye ' + action
+        subprocess.run(cmd, shell=True)
+        logmsg = logmsg + " new status: " + status
     logger.info(logmsg)
 
     return status
