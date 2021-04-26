@@ -24,6 +24,16 @@ pid = str(os.getpid())
 f = open(os.getenv('lockfile'), 'w')  # Change path to fit your needs
 f.write(pid)
 f.close()
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+file_handler = logging.FileHandler('/var/log/fbhome.log')
+formatter = logging.Formatter('%(asctime)s : %(levelname)s : %(name)s : %(message)s')
+file_handler.setFormatter(formatter)
+
+# add file handler to logger
+logger.addHandler(file_handler)
+
 # Load the environment variables into globals
 maclist = os.getenv('maclist').split(',')
 fritz_ip = os.getenv('fritzbox')
@@ -65,7 +75,7 @@ def main():
             time.sleep(60)
         except BaseException:
             status = "UNKNOWN"
-            logging.error('Error at Fritz!Box Home Recognition:', BaseException)
+            logger.exception('Error at Fritz!Box Home Recognition:', BaseException)
             break
 
 
@@ -99,7 +109,7 @@ def startstop_motion(crl, status, home):
         exec_crl = True
 
     if exec_crl:
-        logging.info('Setting Motion status to ' + action)
+        logger.info('Setting Motion status to ' + action)
         crl.setopt(pycurl.URL, motion + "/0/detection/" + action)
         crl.perform()
         crl.reset()
