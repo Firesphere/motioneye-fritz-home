@@ -11,6 +11,7 @@ import logging
 import os
 import subprocess
 import time
+import sys
 
 import dotenv
 import pycurl
@@ -39,27 +40,26 @@ logger.addHandler(file_handler)
 maclist = os.getenv('maclist').split(',')
 motion = os.getenv('motion')
 # Path depends on where you installed fritzconnection. IP needs to be set to Fritz!Box IP.
-# fbuser and fpbass are stored in credentials.py
+# FRITZ!Box settings are stored in .env
 fritz = FritzConnection(address=os.getenv('fritzbox'), user=os.getenv('fbuser'), password=os.getenv('fbpass'))
 
 
 def main():
     # Method specific parts
-    output = io.BytesIO()
     status = "UNKNOWN"
-    status = motion_statuscheck(status, output)
-    while True:  # We loop forever
+    status = motion_statuscheck(status)
+    while status is not "UNKNOWN":  # We loop forever
         try:
             home = check_hosts()
-
             status = startstop_motion(status, home)
-
             # Clear out the existing output, so we're not accidentally doubling up
-            output.truncate()
             # Wait for 60 seconds before this runs again
         except BaseException:
             logger.exception('Error at Fritz!Box Home Recognition ', BaseException)
         time.sleep(60)
+    if status is "UNKNOWN":
+        logger.error("Status is unknown. Restarting")
+        os.execv(__file__, sys.argv)
 
 
 def check_hosts():
@@ -74,7 +74,8 @@ def check_hosts():
     return home
 
 
-def motion_statuscheck(motion_status, output):
+def motion_statuscheck(motion_status):
+    output = io.BytesIO()
     # Read status of motion detection from MotionEye(OS) if it's not set yet
     try:
         crl = pycurl.Curl()
@@ -84,12 +85,12 @@ def motion_statuscheck(motion_status, output):
         status = output.getvalue().decode()
         crl.reset()
         if status.find("PAUSE") != -1:
-            return "PAUSE"
+            motion_status = "PAUSE"
         elif status.find("ACTIVE") != -1:
-            return "ACTIVE"
+            motion_status = "ACTIVE"
     except BaseException:
         logger.info("Motion returned an error", BaseException)
-        motion_status = "PAUSE"  # We got an error, so, force to be "Paused" so next time, it'll activate if needed
+        motion_status = "UNKNOWN"  # We got an error, so, force to be "Paused" so next time, it'll activate if needed
     return motion_status
 
 
