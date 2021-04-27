@@ -1,11 +1,11 @@
 [Unit]
 Description = Start or Stop Motion depending on if you are home
-After = network.target # Assuming you want to start after network interfaces are made available
+After = network.target
 
 [Service]
 WorkingDirectory = /home/pi/motioneye-fritz-home
 ExecStart = /home/pi/motioneye-fritz-home/fbhomerecognition.py
-Restart = on-failure # Restart when there are errors
+Restart = on-failure
 
 [Install]
 WantedBy = multi-user.target
