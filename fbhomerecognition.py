@@ -58,8 +58,15 @@ def main():
             logger.exception('Error at Fritz!Box Home Recognition ', BaseException)
         time.sleep(60)
     if status is "UNKNOWN":
-        logger.error("Status is unknown. Restarting")
-        os.execv(__file__, sys.argv)
+        logger.error("Status is unknown. Restarting MotionEye and Home Detection")
+        # Restart MotionEye, to make sure it's running and we're able to detect the status
+        # next time around
+        try:
+            subprocess.run('service motioneye start', shell=True)
+            os.execv(__file__, sys.argv)
+        except BaseException:
+            logger.exception('Complete system restart failure. Exiting', BaseException)
+            exit(255)
 
 
 # Check if the the registered WLAN MAC addresses are connected
