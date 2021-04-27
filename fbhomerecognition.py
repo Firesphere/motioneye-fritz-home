@@ -64,6 +64,7 @@ def main():
         try:
             subprocess.run('service motioneye start', shell=True)
             os.execv(__file__, sys.argv)
+            time.sleep(10)  # Give it some time to (re)start
         except BaseException:
             logger.exception('Complete system restart failure. Exiting', BaseException)
             exit(255)
@@ -83,6 +84,7 @@ def check_hosts():
     return home
 
 
+# Check the status of motion detection
 def motion_statuscheck(motion_status):
     output = io.BytesIO()
     # Read status of motion detection from MotionEye(OS) if it's not set yet
@@ -121,8 +123,7 @@ def startstop_motion(status, home):
         logger.info(home + " has registered on the Wifi")
         cmd = 'service motioneye ' + action
         subprocess.run(cmd, shell=True)
-        logmsg = logmsg + " new status: " + status
-        logger.info(logmsg)
+        logger.info(logmsg + " new status: " + status)
 
     return status
 
