@@ -62,6 +62,8 @@ def main():
         os.execv(__file__, sys.argv)
 
 
+# Check if the the registered WLAN MAC addresses are connected
+# @todo See if they are connected via a repeater like Kodi
 def check_hosts():
     home = False
     hosts = FritzWLAN(fritz).get_hosts_info()
@@ -69,7 +71,7 @@ def check_hosts():
     # check if given MAC addresses stored in .env are online
     for host in hosts:
         if not home and host.get('mac') in maclist:
-            home = True
+            home = host.get('mac')
             break
     return home
 
@@ -90,24 +92,26 @@ def motion_statuscheck(motion_status):
             motion_status = "ACTIVE"
     except BaseException:
         logger.info("Motion returned an error", BaseException)
-        motion_status = "UNKNOWN"  # We got an error, so, force to be "Paused" so next time, it'll activate if needed
+        # We got an error, so, force to be "Unknown"
+        # This will break the loop and attempt to restart the daemon
+        motion_status = "UNKNOWN"
+
     return motion_status
 
 
 # Check if we need to start or stop Motion, and exec
 def startstop_motion(status, home):
     logmsg = ("current status: " + status)
-    action = "start"
-    exec_cmd = False
-    if not home and status is not "ACTIVE":  # Nobody is home, activate
+    action = None
+    if home is False and status is not "ACTIVE":  # Nobody is home, activate
         status = "ACTIVE"
-        exec_cmd = True
-    elif home and status is "ACTIVE":  # Someone is home, deactivate
+        action = "start"
+    elif home is not False and status is "ACTIVE":  # Someone is home, deactivate
         status = "PAUSE"
         action = "stop"
-        exec_cmd = True
 
-    if exec_cmd:
+    if action is not None:
+        logger.info(home + " has registered on the Wifi")
         cmd = 'service motioneye ' + action
         subprocess.run(cmd, shell=True)
         logmsg = logmsg + " new status: " + status
