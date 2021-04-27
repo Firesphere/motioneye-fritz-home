@@ -9,5 +9,5 @@ git reset --hard
 git pull
 # Make executable, and restart the service
 chmod +x fbhomerecognition.py
-service fritzmotionhome restart
+sudo service fritzmotionhome restart
 chmod +x update.sh

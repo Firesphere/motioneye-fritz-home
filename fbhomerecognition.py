@@ -64,7 +64,7 @@ def main():
         try:
             subprocess.run('service motioneye start', shell=True)
             os.execv(__file__, sys.argv)
-            time.sleep(10)  # Give it some time to (re)start
+            time.sleep(20)  # Give it some time to (re)start
         except BaseException:
             logger.exception('Complete system restart failure. Exiting', BaseException)
             exit(255)
@@ -101,10 +101,12 @@ def motion_statuscheck(motion_status):
         # This will break the loop and attempt to restart the daemon
         motion_status = "UNKNOWN"
 
+    output.truncate()
+
     return motion_status
 
 
-# Get the status from Motion
+# Get the status from Motion and put it in to our output
 def curl_motion(output):
     crl = pycurl.Curl()
     crl.setopt(pycurl.URL, motion + "/0/detection/status")
@@ -126,9 +128,13 @@ def startstop_motion(status, home):
 
     if action is not False:
         logger.info(home + " has registered on the Wifi")
-        cmd = 'service motioneye ' + action
-        subprocess.run(cmd, shell=True)
-        logger.info(logmsg + " new status: " + status)
+        try:
+            cmd = 'service motioneye ' + action
+            subprocess.run(cmd, shell=True)
+            logger.info(logmsg + " new status: " + status)
+        except BaseException:
+            logger.exception('Failed action ' + action)
+            status = "UNKNOWN"
 
     return status
 
