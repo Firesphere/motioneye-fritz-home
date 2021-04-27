@@ -102,7 +102,7 @@ def motion_statuscheck(motion_status):
 # Check if we need to start or stop Motion, and exec
 def startstop_motion(status, home):
     logmsg = ("current status: " + status)
-    action = None
+    action = False
     if home is False and status is not "ACTIVE":  # Nobody is home, activate
         status = "ACTIVE"
         action = "start"
@@ -110,7 +110,7 @@ def startstop_motion(status, home):
         status = "PAUSE"
         action = "stop"
 
-    if action is not None:
+    if action is not False:
         logger.info(home + " has registered on the Wifi")
         cmd = 'service motioneye ' + action
         subprocess.run(cmd, shell=True)
