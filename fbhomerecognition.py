@@ -84,17 +84,13 @@ def check_hosts():
     return home
 
 
-# Check the status of motion detection
+# Map status from Motion to useful values
 def motion_statuscheck(motion_status):
     output = io.BytesIO()
     # Read status of motion detection from MotionEye(OS) if it's not set yet
     try:
-        crl = pycurl.Curl()
-        crl.setopt(pycurl.URL, motion + "/0/detection/status")
-        crl.setopt(pycurl.WRITEFUNCTION, output.write)
-        crl.perform()
+        curl_motion(output)
         status = output.getvalue().decode()
-        crl.reset()
         if status.find("PAUSE") != -1:
             motion_status = "PAUSE"
         elif status.find("ACTIVE") != -1:
@@ -106,6 +102,15 @@ def motion_statuscheck(motion_status):
         motion_status = "UNKNOWN"
 
     return motion_status
+
+
+# Get the status from Motion
+def curl_motion(output):
+    crl = pycurl.Curl()
+    crl.setopt(pycurl.URL, motion + "/0/detection/status")
+    crl.setopt(pycurl.WRITEFUNCTION, output.write)
+    crl.perform()
+    crl.reset()
 
 
 # Check if we need to start or stop Motion, and exec
