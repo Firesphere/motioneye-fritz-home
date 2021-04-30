@@ -53,6 +53,14 @@ Copy `example.env` to `.env`, and adjust the settings as needed.
 
 Should work. Logs are in `/var/log/fbhome.log`
 
+### Logrotate (Debian based systems)
+
+Copy the file `fbhome` to `/etc/logrotate.d/fbhome`
+
+Test with the following command:
+
+`sudo logrotate -d /etc/logrotate.d/fbhome`
+
 # LICENSE
 WTFPL
 

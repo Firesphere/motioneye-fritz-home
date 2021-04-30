@@ -1,0 +1,7 @@
+/var/log/fbhome.log {
+    daily
+    rotate 3
+    size 1M
+    compress
+    delaycompress
+}

@@ -38,7 +38,7 @@ logger.addHandler(file_handler)
 
 # Load the environment variables into application globals
 maclist = os.getenv('maclist').split(',')
-macregistered = []  # @todo: Log if a mac disappeared
+macregistered = []
 motion = os.getenv('motion')
 # Path depends on where you installed fritzconnection. IP needs to be set to Fritz!Box IP.
 # FRITZ!Box settings are stored in .env
