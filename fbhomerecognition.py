@@ -38,6 +38,7 @@ logger.addHandler(file_handler)
 
 # Load the environment variables into application globals
 maclist = os.getenv('maclist').split(',')
+macregistered = []
 motion = os.getenv('motion')
 # Path depends on where you installed fritzconnection. IP needs to be set to Fritz!Box IP.
 # FRITZ!Box settings are stored in .env
@@ -57,30 +58,36 @@ def main():
         except BaseException:
             logger.exception('Error at Fritz!Box Home Recognition ', BaseException)
         time.sleep(60)
-    if status is "UNKNOWN":
-        logger.error("Status is unknown. Restarting MotionEye and Home Detection")
-        # Restart MotionEye, to make sure it's running and we're able to detect the status
-        # next time around
-        try:
-            subprocess.run('service motioneye start', shell=True)
-            os.execv(__file__, sys.argv)
-            time.sleep(20)  # Give it some time to (re)start
-        except BaseException:
-            logger.exception('Complete system restart failure. Exiting', BaseException)
-            exit(255)
+    # Only if the while loop breaks, will we enter the UNKNOWN state
+    logger.error("Status is unknown. Restarting MotionEye and Home Detection")
+    # Restart MotionEye, to make sure it's running and we're able to detect the status
+    # next time around
+    try:
+        subprocess.run('service motioneye start', shell=True)
+        os.execv(__file__, sys.argv)
+        time.sleep(20)  # Give it some time to (re)start
+    except BaseException:
+        logger.exception('Complete system restart failure. Exiting', BaseException)
+        exit(255)
 
 
 # Check if the the registered WLAN MAC addresses are connected
-# @todo See if they are connected via a repeater like Kodi
+# @todo See if they are connected via a repeater
 def check_hosts():
     home = False
     hosts = FritzWLAN(fritz).get_hosts_info()
     # Read data from Fritz!Box with fritzconnection
     # check if given MAC addresses stored in .env are online
+    # This could be a bit more readable though...
     for host in hosts:
-        if not home and host.get('mac') in maclist:
-            home = host.get('mac')
-            break
+        mac = host.get('mac')
+        global macregistered
+        if mac in maclist and mac not in macregistered:
+            macregistered.append(mac)
+            logger.info("Found {}".format(mac))
+        if mac in maclist:
+            home = True
+
     return home
 
 
@@ -98,7 +105,7 @@ def motion_statuscheck(motion_status):
     except BaseException:
         logger.info("Motion returned an error", BaseException)
         # We got an error, so, force to be "Unknown"
-        # This will break the loop and attempt to restart the daemon
+        # This will break the loop above and attempt to restart the daemons
         motion_status = "UNKNOWN"
 
     output.truncate()
@@ -117,23 +124,25 @@ def curl_motion(output):
 
 # Check if we need to start or stop Motion, and exec
 def startstop_motion(status, home):
-    logmsg = ("current status: " + status)
+    old_status = status
     action = False
-    if home is False and status is not "ACTIVE":  # Nobody is home, activate
+    if not home and status is not "ACTIVE":  # Nobody is home, activate
         status = "ACTIVE"
         action = "start"
-    elif home is not False and status is "ACTIVE":  # Someone is home, deactivate
+        # Clear out the registered macs. Nobody is "home"
+        global macregistered
+        macregistered.clear()
+    elif home and status is "ACTIVE":  # Someone is home, deactivate
         status = "PAUSE"
         action = "stop"
 
     if action is not False:
-        logger.info(home + " has registered on the Wifi")
         try:
             cmd = 'service motioneye ' + action
             subprocess.run(cmd, shell=True)
-            logger.info(logmsg + " new status: " + status)
+            logger.info("Current status: {}; new status: {}".format(old_status, status))
         except BaseException:
-            logger.exception('Failed action ' + action)
+            logger.exception('Failed action {} on MotionEye'.format(action), BaseException)
             status = "UNKNOWN"
 
     return status
