@@ -11,3 +11,4 @@ git pull
 chmod +x fbhomerecognition.py
 sudo service fritzmotionhome restart
 chmod +x update.sh
+chown -R pi:pi .
