@@ -61,11 +61,11 @@ def main():
     # Only if the while loop breaks, will we enter the UNKNOWN state
     logger.error("Status is unknown. Restarting MotionEye and Home Detection")
     # Restart MotionEye, to make sure it's running and we're able to detect the status
-    # next time around
+    # next time around. And restart this daemon after that.
     try:
         subprocess.run('service motioneye start', shell=True)
-        os.execv(__file__, sys.argv)
         time.sleep(20)  # Give it some time to (re)start
+        os.execv(__file__, sys.argv)
     except BaseException:
         logger.exception('Complete system restart failure. Exiting', BaseException)
         exit(255)
