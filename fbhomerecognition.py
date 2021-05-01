@@ -29,18 +29,18 @@ f.close()
 
 logger = logging.getLogger("FRITZ!Box AmIHome Recognition")
 logger.setLevel(logging.INFO)
-file_handler = logging.FileHandler('/var/log/fbhome.log')
+handler = logging.FileHandler('/var/log/fbhome.log')
 formatter = logging.Formatter('%(asctime)s : %(levelname)s : %(name)s : %(message)s')
-file_handler.setFormatter(formatter)
-
+handler.setFormatter(formatter)
+if os.getenv('logging') is not None:
+    handler = logging.NullHandler()  # Disable logging
 # add file handler to logger
-logger.addHandler(file_handler)
+logger.addHandler(handler)
 
 # Load the environment variables into application globals
 maclist = os.getenv('maclist').split(',')
 macregistered = []
 motion = os.getenv('motion')
-# Path depends on where you installed fritzconnection. IP needs to be set to Fritz!Box IP.
 # FRITZ!Box settings are stored in .env
 fritz = FritzConnection(address=os.getenv('fritzbox'), user=os.getenv('fbuser'), password=os.getenv('fbpass'))
 
@@ -68,7 +68,7 @@ def main():
         os.execv(__file__, sys.argv)
     except BaseException:
         logger.exception('Complete system restart failure. Exiting', BaseException)
-        exit(255)
+        sys.exit(255)
 
 
 # Check if the the registered WLAN MAC addresses are connected
@@ -140,9 +140,13 @@ def startstop_motion(status, home):
         try:
             cmd = 'service motioneye ' + action
             subprocess.run(cmd, shell=True)
-            logger.info("Current status: {}; new status: {}".format(old_status, status))
+            logger.info("MotionEye status updated.")
+            logger.info("Previous status: {}".format(old_status))
+            logger.info("New status: {}".format(status))
         except BaseException:
             logger.exception('Failed action {} on MotionEye'.format(action), BaseException)
+            # If execution of the action fails, revert to "UNKNOWN" to restart all processes
+            # and start over again
             status = "UNKNOWN"
 
     return status

@@ -3,6 +3,14 @@
 Based on the MAC addresses registered at your Fritz!Box,
 this library will start or stop Motion, on your MotionEye system.
 
+
+#### Notes
+
+- Wired connections are not taken in ot account
+- Logging works, but may be a tad confusing
+- The powerup/shutdown is the entire Motion/MotionEye services, not just pausing Motion
+- More notes to come...
+
 ## Requirements
 
 Python3.
@@ -52,6 +60,8 @@ Copy `example.env` to `.env`, and adjust the settings as needed.
 ## Logging
 
 Should work. Logs are in `/var/log/fbhome.log`
+
+Disable logging in your `.env` file with `logging=False`
 
 ### Logrotate (Debian based systems)
 
