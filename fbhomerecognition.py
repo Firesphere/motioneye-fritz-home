@@ -12,11 +12,12 @@ import os
 import subprocess
 import time
 import sys
+import json
 
 import dotenv
 import pycurl
 from fritzconnection import FritzConnection
-from fritzconnection.lib.fritzwlan import FritzWLAN
+from fritzconnection.lib.fritzhosts import FritzHosts
 
 # Load env variables
 env_path = os.path.join(os.getcwd(), '.env')
@@ -27,28 +28,31 @@ f = open(os.getenv('lockfile'), 'w')
 f.write(pid)
 f.close()
 
+handler = None
 logger = logging.getLogger("FRITZ!Box AmIHome Recognition")
 logger.setLevel(logging.INFO)
-handler = logging.FileHandler('/var/log/fbhome.log')
+if os.getenv('environment') == 'dev':
+    handler = logging.StreamHandler(sys.stdout)
+else:  # The else is to prevent errors trying to open the log file as the wrong user
+    handler = logging.FileHandler('/var/log/fbhome.log')
 formatter = logging.Formatter('%(asctime)s : %(levelname)s : %(name)s : %(message)s')
 handler.setFormatter(formatter)
-if os.getenv('logging') is not None:
-    handler = logging.NullHandler()  # Disable logging
-# add file handler to logger
 logger.addHandler(handler)
 
-# Load the environment variables into application globals
-maclist = os.getenv('maclist').split(',')
-macregistered = []
+if os.getenv('maclist'):
+    maclist = os.getenv('maclist').split(',')
+elif os.path.exists('devices.json'):
+    devices = open('devices.json', 'r')
+    maclist = json.load(devices)
+else:
+    raise LookupError("No MAC addresses found to check against!")
 motion = os.getenv('motion')
 # FRITZ!Box settings are stored in .env
 fritz = FritzConnection(address=os.getenv('fritzbox'), user=os.getenv('fbuser'), password=os.getenv('fbpass'))
 
 
 def main():
-    # Method specific parts
-    status = "UNKNOWN"
-    status = motion_statuscheck(status)
+    status = motion_statuscheck()
     while status is not "UNKNOWN":  # We loop forever
         try:
             home = check_hosts()
@@ -71,28 +75,25 @@ def main():
         sys.exit(255)
 
 
-# Check if the the registered WLAN MAC addresses are connected
-# @todo See if they are connected via a repeater
+# Check if the the registered  MAC addresses are connected
 def check_hosts():
     home = False
-    hosts = FritzWLAN(fritz).get_hosts_info()
+    hosts = FritzHosts(fritz).get_hosts_info()
     # Read data from Fritz!Box with fritzconnection
     # check if given MAC addresses stored in .env are online
     # This could be a bit more readable though...
     for host in hosts:
         mac = host.get('mac')
-        global macregistered
-        if mac in maclist and mac not in macregistered:
-            macregistered.append(mac)
-            logger.info("Found {}".format(mac))
         if mac in maclist:
+            logger.info("Found {}".format(mac))
             home = True
 
     return home
 
 
 # Map status from Motion to useful values
-def motion_statuscheck(motion_status):
+def motion_statuscheck():
+    motion_status = "UNKNOWN"
     output = io.BytesIO()
     # Read status of motion detection from MotionEye(OS) if it's not set yet
     try:
@@ -129,9 +130,6 @@ def startstop_motion(status, home):
     if not home and status is not "ACTIVE":  # Nobody is home, activate
         status = "ACTIVE"
         action = "start"
-        # Clear out the registered macs. Nobody is "home"
-        global macregistered
-        macregistered.clear()
     elif home and status is "ACTIVE":  # Someone is home, deactivate
         status = "PAUSE"
         action = "stop"

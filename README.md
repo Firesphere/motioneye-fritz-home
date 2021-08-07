@@ -6,10 +6,7 @@ this library will start or stop Motion, on your MotionEye system.
 
 #### Notes
 
-- Wired connections are not taken in ot account
-- Logging works, but may be a tad confusing
 - The powerup/shutdown is the entire Motion/MotionEye services, not just pausing Motion
-- More notes to come...
 
 ## Requirements
 
@@ -57,11 +54,24 @@ sudo systemctl start fritzmotionhome
 
 Copy `example.env` to `.env`, and adjust the settings as needed.
 
+## MAC addresses
+
+Either configured in your `.env`, or in a separate `devices.json` file
+in json format:
+
+```json
+[
+  "00:00:00:00:00",
+  "11:11:11:11:11"
+]
+```
+
 ## Logging
 
 Should work. Logs are in `/var/log/fbhome.log`
 
-Disable logging in your `.env` file with `logging=False`
+To get an output while working in the console, 
+set the environment in your `.env` to "dev"
 
 ### Logrotate (Debian based systems)
 
