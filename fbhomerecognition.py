@@ -55,7 +55,7 @@ def main():
     status = motion_statuscheck()
     while status is not "UNKNOWN":  # We loop forever
         try:
-            home = check_hosts()
+            home = check_hosts(status)
             status = startstop_motion(status, home)
             # Clear out the existing output, so we're not accidentally doubling up
             # Wait for 60 seconds before this runs again
@@ -76,7 +76,7 @@ def main():
 
 
 # Check if the the registered  MAC addresses are connected
-def check_hosts():
+def check_hosts(status):
     home = False
     hosts = FritzHosts(fritz).get_active_hosts()
     # Read data from Fritz!Box with fritzconnection
@@ -85,7 +85,8 @@ def check_hosts():
     for host in hosts:
         mac = host.get('mac')
         if mac in maclist:
-            logger.info("Found {}".format(mac))
+            if status != "PAUSE":
+                logger.info("Found {}".format(mac))
             home = True
 
     return home
