@@ -78,7 +78,7 @@ def main():
 # Check if the the registered  MAC addresses are connected
 def check_hosts():
     home = False
-    hosts = FritzHosts(fritz).get_hosts_info()
+    hosts = FritzHosts(fritz).get_active_hosts()
     # Read data from Fritz!Box with fritzconnection
     # check if given MAC addresses stored in .env are online
     # This could be a bit more readable though...
