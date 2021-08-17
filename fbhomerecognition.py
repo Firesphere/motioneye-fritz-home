@@ -55,6 +55,7 @@ fritz = FritzConnection(address=os.getenv('fritzbox'), user=os.getenv('fbuser'),
 def main():
     check_hosts("UNKNOWN")
     status = motion_statuscheck()
+    publish_mqtt(status)
     while status is not "UNKNOWN":  # We loop forever
         try:
             home = check_hosts(status)
@@ -92,6 +93,12 @@ def check_hosts(status):
             home = True
 
     return home
+
+
+def publish_mqtt(status):
+    if os.getenv('mqtt') is not None:
+        status_boolean = 1 if status == 'ACTIVE' else 0
+        publish.single(os.getenv('mqtt_topic'), status_boolean, hostname=os.getenv('mqtt'))
 
 
 # Map status from Motion to useful values
@@ -144,14 +151,13 @@ def startstop_motion(status, home):
             logger.info("MotionEye status updated.")
             logger.info("Previous status: {}".format(old_status))
             logger.info("New status: {}".format(status))
-            if os.getenv('mqtt') is not None:
-                status_boolean = 1 if status == 'ACTIVE' else 0
-                publish.single(os.getenv('mqtt_topic'), status_boolean, hostname=os.getenv('mqtt'))
         except BaseException:
             logger.exception('Failed action {} on MotionEye'.format(action), BaseException)
             # If execution of the action fails, revert to "UNKNOWN" to restart all processes
             # and start over again
             status = "UNKNOWN"
+
+    publish_mqtt(status)
 
     return status
 
