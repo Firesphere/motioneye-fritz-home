@@ -149,9 +149,7 @@ def startstop_motion(status, home):
         try:
             cmd = 'service motioneye ' + action
             subprocess.run(cmd, shell=True)
-            logger.info("MotionEye status updated.")
-            logger.info("Previous status: {}".format(old_status))
-            logger.info("New status: {}".format(status))
+            logger.info("MotionEye status updated. Previous status: {}; new status: {}".format(old_status, status))
         except BaseException:
             logger.exception('Failed action {} on MotionEye'.format(action), BaseException)
             # If execution of the action fails, revert to "UNKNOWN" to restart all processes
