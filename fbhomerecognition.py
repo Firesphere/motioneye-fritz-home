@@ -98,7 +98,6 @@ def check_hosts(status):
 
 def publish_mqtt(status):
     if os.getenv('mqtt') is not None:
-        logger.info('Pushing to MQTT status {}'.format(status))
         status_boolean = 1 if status == 'ACTIVE' else 0
         publish.single(os.getenv('mqtt_topic'), status_boolean, hostname=os.getenv('mqtt'))
 
