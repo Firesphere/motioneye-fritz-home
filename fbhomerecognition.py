@@ -13,6 +13,7 @@ import subprocess
 import time
 import sys
 import json
+import paho.mqtt.publish as publish
 
 import dotenv
 import pycurl
@@ -52,6 +53,7 @@ fritz = FritzConnection(address=os.getenv('fritzbox'), user=os.getenv('fbuser'),
 
 
 def main():
+    check_hosts("UNKNOWN")
     status = motion_statuscheck()
     while status is not "UNKNOWN":  # We loop forever
         try:
@@ -63,7 +65,7 @@ def main():
             logger.exception('Error at Fritz!Box Home Recognition ', BaseException)
         time.sleep(60)
     # Only if the while loop breaks, will we enter the UNKNOWN state
-    logger.error("Status is unknown. Restarting MotionEye and Home Detection")
+    logger.warning("Status is unknown. Restarting MotionEye and Home Detection")
     # Restart MotionEye, to make sure it's running and we're able to detect the status
     # next time around. And restart this daemon after that.
     try:
@@ -142,6 +144,9 @@ def startstop_motion(status, home):
             logger.info("MotionEye status updated.")
             logger.info("Previous status: {}".format(old_status))
             logger.info("New status: {}".format(status))
+            if os.getenv('mqtt') is not None:
+                status_boolean = True if status == 'ACTIVE' else False
+                publish.single(os.getenv('mqtt_topic'), status_boolean, hostname=os.getenv('mqtt'))
         except BaseException:
             logger.exception('Failed action {} on MotionEye'.format(action), BaseException)
             # If execution of the action fails, revert to "UNKNOWN" to restart all processes
