@@ -66,6 +66,18 @@ in json format:
 ]
 ```
 
+## MQTT
+
+To enable MQTT reporting, add the information to your `.env` file, like so:
+
+``` 
+mqtt='123.123.123'
+mqtt_topic='mytopic/name/here'
+```
+
+Replace the values of mqtt with the IP of your MQTT host, and the topic
+with what you want the topic to be.
+
 ## Logging
 
 Should work. Logs are in `/var/log/fbhome.log`
