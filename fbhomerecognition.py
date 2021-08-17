@@ -145,7 +145,7 @@ def startstop_motion(status, home):
             logger.info("Previous status: {}".format(old_status))
             logger.info("New status: {}".format(status))
             if os.getenv('mqtt') is not None:
-                status_boolean = True if status == 'ACTIVE' else False
+                status_boolean = 1 if status == 'ACTIVE' else 0
                 publish.single(os.getenv('mqtt_topic'), status_boolean, hostname=os.getenv('mqtt'))
         except BaseException:
             logger.exception('Failed action {} on MotionEye'.format(action), BaseException)
