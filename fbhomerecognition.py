@@ -23,16 +23,11 @@ from fritzconnection.lib.fritzhosts import FritzHosts
 # Load env variables
 env_path = os.path.join(os.getcwd(), '.env')
 dotenv.load_dotenv(dotenv_path=env_path)
-# create pid file
-pid = str(os.getpid())
-f = open(os.getenv('lockfile'), 'w')
-f.write(pid)
-f.close()
 
 handler = None
 logger = logging.getLogger("FRITZ!Box AmIHome Recognition")
 logger.setLevel(logging.INFO)
-if os.getenv('environment') == 'dev':
+if os.getenv('ENVIRONMENT') == 'dev':
     handler = logging.StreamHandler(sys.stdout)
 else:  # The else is to prevent errors trying to open the log file as the wrong user
     handler = logging.FileHandler('/var/log/fbhome.log')
@@ -40,43 +35,41 @@ formatter = logging.Formatter('%(asctime)s : %(levelname)s : %(name)s : %(messag
 handler.setFormatter(formatter)
 logger.addHandler(handler)
 
-if os.getenv('maclist'):
-    maclist = os.getenv('maclist').split(',')
+if os.getenv('MACLIST'):
+    maclist = os.getenv('MACLIST').split(',')
 elif os.path.exists('devices.json'):
     devices = open('devices.json', 'r')
     maclist = json.load(devices)
 else:
     raise LookupError("No MAC addresses found to check against!")
-motion = os.getenv('motion')
+motion = os.getenv('MOTION')
 # FRITZ!Box settings are stored in .env
-fritz = FritzConnection(address=os.getenv('fritzbox'), user=os.getenv('fbuser'), password=os.getenv('fbpass'))
+fritz = FritzConnection(address=os.getenv('FRITZBOX', '192.168.178.1'), user=os.getenv('FBUSER'), password=os.getenv('FBPASS'))
 
 
 def main():
-    check_hosts("UNKNOWN")
-    status = motion_statuscheck()
-    publish_mqtt(status)
-    while status is not "UNKNOWN":  # We loop forever
+    # Default to set everything to be paused
+    publish_mqtt("PAUSE")
+    # Assume motion is active, and someone is home.
+    # This will cause a cut-out of maximum one minute if the system is rebooted
+    # However, the reboot will be much faster without motion startup
+    status = startstop_motion("ACTIVE", True)
+    while True:  # We loop forever
+        if status == "UNKNOWN":
+            # Only if we get the UNKNOWN state
+            logger.warning("Status is unknown. Restarting MotionEye and Home Detection")
+            # Attempt to force MotionEye to start, better safe than sorry
+            startstop_motion("PAUSE", False)
+
         try:
             home = check_hosts(status)
             status = startstop_motion(status, home)
             publish_mqtt(status)
             # Clear out the existing output, so we're not accidentally doubling up
             # Wait for 60 seconds before this runs again
-        except BaseException:
-            logger.exception('Error at Fritz!Box Home Recognition ', BaseException)
-        time.sleep(60)
-    # Only if the while loop breaks, will we enter the UNKNOWN state
-    logger.warning("Status is unknown. Restarting MotionEye and Home Detection")
-    # Restart MotionEye, to make sure it's running and we're able to detect the status
-    # next time around. And restart this daemon after that.
-    try:
-        subprocess.run('service motioneye start', shell=True)
-        time.sleep(20)  # Give it some time to (re)start
-        os.execv(__file__, sys.argv)
-    except BaseException:
-        logger.exception('Complete system restart failure. Exiting', BaseException)
-        sys.exit(255)
+        except BaseException as e:
+            logger.exception('Error at Fritz!Box Home Recognition ', e)
+        time.sleep(30)
 
 
 # Check if the the registered  MAC addresses are connected
@@ -90,39 +83,16 @@ def check_hosts(status):
         mac = host.get('mac')
         if mac in maclist:
             if status != "PAUSE":
-                logger.info("Found {}".format(mac))
+                logger.info("Found {} - {}".format(mac, host.get('name')))
             home = True
 
     return home
 
 
 def publish_mqtt(status):
-    if os.getenv('mqtt') is not None:
+    if os.getenv('MQTT') is not None:
         status_boolean = 1 if status == 'ACTIVE' else 0
-        publish.single(os.getenv('mqtt_topic'), status_boolean, hostname=os.getenv('mqtt'))
-
-
-# Map status from Motion to useful values
-def motion_statuscheck():
-    motion_status = "UNKNOWN"
-    output = io.BytesIO()
-    # Read status of motion detection from MotionEye(OS) if it's not set yet
-    try:
-        curl_motion(output)
-        status = output.getvalue().decode()
-        if status.find("PAUSE") != -1:
-            motion_status = "PAUSE"
-        elif status.find("ACTIVE") != -1:
-            motion_status = "ACTIVE"
-    except BaseException:
-        logger.info("Motion returned an error", BaseException)
-        # We got an error, so, force to be "Unknown"
-        # This will break the loop above and attempt to restart the daemons
-        motion_status = "UNKNOWN"
-
-    output.truncate()
-
-    return motion_status
+        publish.single(os.getenv('MQTT_TOPIC'), status_boolean, hostname=os.getenv('MQTT'))
 
 
 # Get the status from Motion and put it in to our output
@@ -138,10 +108,10 @@ def curl_motion(output):
 def startstop_motion(status, home):
     old_status = status
     action = False
-    if not home and status is not "ACTIVE":  # Nobody is home, activate
+    if not home and status != "ACTIVE":  # Nobody is home, activate
         status = "ACTIVE"
         action = "start"
-    elif home and status is "ACTIVE":  # Someone is home, deactivate
+    elif home and status == "ACTIVE":  # Someone is home, deactivate
         status = "PAUSE"
         action = "stop"
 
@@ -150,8 +120,8 @@ def startstop_motion(status, home):
             cmd = 'service motioneye ' + action
             subprocess.run(cmd, shell=True)
             logger.info("MotionEye status updated. Previous status: {}; new status: {}".format(old_status, status))
-        except BaseException:
-            logger.exception('Failed action {} on MotionEye'.format(action), BaseException)
+        except BaseException as e:
+            logger.exception('Failed action {} on MotionEye'.format(action), e)
             # If execution of the action fails, revert to "UNKNOWN" to restart all processes
             # and start over again
             status = "UNKNOWN"
