@@ -3,10 +3,6 @@
 # where it switches MotionEyeOS motion detection on or off
 # depending on if given devices are found in the Fritz!Box (WIFI)network.
 
-# Be aware of that this is a beginners work. If you find anything that could be improved
-# feel free to tell me.
-
-import io
 import logging
 import os
 import subprocess
@@ -16,7 +12,6 @@ import json
 import paho.mqtt.publish as publish
 
 import dotenv
-import pycurl
 from fritzconnection import FritzConnection
 from fritzconnection.lib.fritzhosts import FritzHosts
 
@@ -44,15 +39,13 @@ else:
     raise LookupError("No MAC addresses found to check against!")
 motion = os.getenv('MOTION')
 # FRITZ!Box settings are stored in .env
-fritz = FritzConnection(address=os.getenv('FRITZBOX', '192.168.178.1'), user=os.getenv('FBUSER'), password=os.getenv('FBPASS'))
+fritz = FritzConnection(address=os.getenv('FRITZ_IP_ADDRESS', '192.168.178.1'))
 
 
 def main():
-    # Default to set everything to be paused
-    publish_mqtt("PAUSE")
     # Assume motion is active, and someone is home.
     # This will cause a cut-out of maximum one minute if the system is rebooted
-    # However, the reboot will be much faster without motion startup
+    # However, the reboot will be much faster without MotionEye booting at system startup
     status = startstop_motion("ACTIVE", True)
     while True:  # We loop forever
         if status == "UNKNOWN":
@@ -69,7 +62,7 @@ def main():
             # Wait for 60 seconds before this runs again
         except BaseException as e:
             logger.exception('Error at Fritz!Box Home Recognition ', e)
-        time.sleep(30)
+        time.sleep(60)
 
 
 # Check if the the registered  MAC addresses are connected
@@ -91,17 +84,12 @@ def check_hosts(status):
 
 def publish_mqtt(status):
     if os.getenv('MQTT') is not None:
+        mqtt_auth = {}
+        if os.getenv('MQTT_USER'):
+            mqtt_auth['username'] = os.getenv('MQTT_USER')
+            mqtt_auth['password'] = os.getenv('MQTT_PASS')
         status_boolean = 1 if status == 'ACTIVE' else 0
-        publish.single(os.getenv('MQTT_TOPIC'), status_boolean, hostname=os.getenv('MQTT'))
-
-
-# Get the status from Motion and put it in to our output
-def curl_motion(output):
-    crl = pycurl.Curl()
-    crl.setopt(pycurl.URL, motion + "/0/detection/status")
-    crl.setopt(pycurl.WRITEFUNCTION, output.write)
-    crl.perform()
-    crl.reset()
+        publish.single(os.getenv('MQTT_TOPIC'), status_boolean, hostname=os.getenv('MQTT'), auth=mqtt_auth)
 
 
 # Check if we need to start or stop Motion, and exec
@@ -117,7 +105,8 @@ def startstop_motion(status, home):
 
     if action is not False:
         try:
-            cmd = 'service motioneye ' + action
+            cmd = ['service', 'motioneye', action]
+            # cmd = 'service motioneye {}'.format(action)
             subprocess.run(cmd, shell=True)
             logger.info("MotionEye status updated. Previous status: {}; new status: {}".format(old_status, status))
         except BaseException as e:
