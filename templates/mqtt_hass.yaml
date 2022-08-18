@@ -1,0 +1,22 @@
+mqtt:
+  buttons:
+    - unique_id: shutdown_my_system
+      name: "Shutdown My System"
+      command_topic: "raspberry/my-system-name/cmd"
+      payload_press: "shutdown"
+      availability:
+        - topic: "raspberry/my-system-name/available"
+          payload_available: "online"
+          payload_not_available: "offline"
+      device:
+        identifiers: "RPi-random-identifier"
+    - unique_id: reboot_my_system
+      name: "Reboot My System"
+      command_topic: "raspberry/my-system-name/cmd"
+      payload_press: "reboot"
+      availability:
+        - topic: "raspberry/my-system-name/available"
+          payload_available: "online"
+          payload_not_available: "offline"
+      device:
+        identifiers: "RPi-random-identifier"

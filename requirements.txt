@@ -1,4 +1,0 @@
-fritzconnection
-pycurl
-python-dotenv
-paho-mqtt

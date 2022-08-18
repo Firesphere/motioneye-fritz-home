@@ -1,0 +1,13 @@
+[Service]
+ExecStart=/usr/bin/python3 /home/pi/mqtt_reboot/main.py
+WorkingDirectory=/home/pi/mqtt_reboot
+Restart=always
+RestartSec=10
+StandardOutput=syslog
+StandardError=syslog
+SyslogIdentifier=mqtt_shutdown
+User=root
+Group=root
+
+[Install]
+WantedBy=multi-user.target
